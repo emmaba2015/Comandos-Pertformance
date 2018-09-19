@@ -1,0 +1,49 @@
+-- 1.- Necesitamos saber de quién es el objeto que queremos mover, para esto hacemos el siguiente script:
+
+SELECT 
+a.owner “OWNER”, 
+a.segment_name “TABLE”, 
+b.tablespace_name “TABLESPACE”, 
+round(NVL(SUM(a.bytes),0)/(1024*1024),2) “SIZE_MB”, 
+SUM(a.extents) “EXTENTS”
+FROM dba_segments a, dba_tables b
+WHERE a.segment_name = b.table_name
+AND a.segment_type = ‘TABLE’
+AND a.owner=’FULANO’
+GROUP BY a.owner, a.segment_name, b.tablespace_name ORDER BY 4 DESC
+
+-- 2.- Una vez que tenemos los objetos, sabemos su tamaño y en que tablespace está alojado.
+
+-- 3.- Hacemos lo mismo para los índices con el siguiente script:
+
+SELECT 
+a.owner “OWNER”, 
+a.segment_name “INDEX”, 
+b.tablespace_name “TABLESPACE”, 
+round(NVL(SUM(a.bytes),0)/(1024*1024),2) “SIZE_MB”, 
+SUM(a.extents) “EXTENTS”
+FROM dba_segments a, dba_indexes b
+WHERE a.segment_name = b.index_name
+AND a.segment_type = ‘INDEX’
+AND b.owner=’FULANO’
+GROUP BY a.owner, a.segment_name, b.tablespace_name ORDER BY 4 DESC
+
+-- 4.- Movemos las tablas identificas a otro tablespace
+
+SELECT
+‘alter table ‘|| a.owner || ‘.’ || a.segment_name ||’ move tablespace NWTBS;’
+FROM dba_segments a, dba_tables b
+WHERE a.segment_name = b.table_name
+AND a.segment_type = ‘TABLE’
+AND a.owner IN (‘FULANO’,’SUTANO’)
+group by a.owner,a.segment_name;
+
+-- 5.- Movemos los índices
+
+SELECT 
+‘alter index ‘|| a.owner || ‘.’ || a.segment_name ||’ rebuild tablespace INDICE;’
+FROM dba_segments a, dba_indexes b
+WHERE a.segment_name = b.index_name
+AND a.segment_type = ‘INDEX’
+AND a.owner IN (‘FULANO’,’SUTANO’)
+group by a.owner,a.segment_name,b.tablespace_name;
